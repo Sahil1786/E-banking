@@ -183,22 +183,28 @@ router.get("/wallet-ledger", authMiddleware, (req, res) => {
 });
 
 
-router.get("/payout-log/:txn_id", authMiddleware, (req, res) => {
-    const { txn_id } = req.params;
 
-    const query = "SELECT * FROM payout_logs WHERE txn_id = ?";
 
-    connection.query(query, [txn_id], (err, results) => {
-        if (err) {
-            console.error("Error fetching payout log:", err);
-            return res.status(500).json({ message: "Database error" });
-        }
 
-        if (results.length === 0) {
-            return res.status(404).json({ message: "Payout log not found" });
-        }
 
-        return res.status(200).json(results[0]);
+
+router.get("/payouts-logs",authMiddleware, (req, res) => {
+    const loginId = req.user.login_id;
+
+   
+    const companyQuery = "SELECT company_id FROM api_dashboard_user WHERE login_id = ?";
+    connection.query(companyQuery, [loginId], (err, companyResult) => {
+        if (err) return res.status(500).json({ error: "DB query failed" });
+        if (companyResult.length === 0) return res.status(404).json({ message: "User not found" });
+
+        const companyId = companyResult[0].company_id;
+
+     
+        const payoutQuery = "SELECT * FROM api_payout_log WHERE company_id = ?";
+        connection.query(payoutQuery, [companyId], (err, payouts) => {
+            if (err) return res.status(500).json({ error: "DB query failed" });
+            res.json(payouts);
+        });
     });
 });
 

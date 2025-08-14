@@ -61,12 +61,19 @@ router.post("/login", async (req, res) => {
                 });
             }
 
-        
-            if (user.status.toLowerCase() !== "active") {
+        const isActive = user.status.toLowerCase() == "active" || user.status=="Active" || user.status=="ACTIVE"|| user.status=="active";
+            if (user.status== isActive) {
                 return res.status(403).json({
                     message: "Account is inactive. Contact admin."
                 });
             }
+
+            //        if (user.status.toLowerCase() !== "active") {
+            //     return res.status(403).json({
+            //         message: "Account is inactive. Contact admin."
+            //     });
+            // }
+
 
             delete user.password;
 
