@@ -209,7 +209,44 @@ router.get("/payouts-logs",authMiddleware, (req, res) => {
 });
 
 
+router.get("/bulk-pay", authMiddleware, (req, res) => {
+    const login_id = req.user?.login_id;
+    if (!login_id) {
+        return res.status(401).json({ message: "Unauthorized: Missing login_id" });
+    }
 
+ 
+    connection.query(
+        "SELECT company_id FROM api_dashboard_user WHERE login_id = ?",
+        [login_id],
+        (err, userResults) => {
+            if (err) {
+                return res.status(500).json({ message: "Database error", error: err });
+            }
+            if (userResults.length === 0) {
+                return res.status(404).json({ message: "User not found" });
+            }
+
+            const company_id = userResults[0].company_id;
+
+            
+            const sql = "SELECT * FROM api_bulk_pay_data WHERE company_id = ? ORDER BY txn_date DESC";
+
+            connection.query(sql, [company_id], (err, bulkResults) => {
+                if (err) {
+                    return res.status(500).json({ message: "Database error", error: err });
+                }
+
+                return res.status(200).json({
+                    message: "Bulk Pay Data fetched successfully",
+                    company_id,
+                    count: bulkResults.length,
+                    data: bulkResults
+                });
+            });
+        }
+    );
+});
 
 
 module.exports = router;
