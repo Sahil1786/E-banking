@@ -6,6 +6,7 @@ const connection = require('../db/db.js');
 const md5=require('md5');
 
 const jwt = require("jsonwebtoken");
+const { authMiddleware } = require('../middleware/auth.js');
 
 const app=exprss();
 
@@ -86,8 +87,29 @@ router.post("/login", async (req, res) => {
 
             return res.status(200).json({
                 message: "Login successful",
-                token,
-                user
+                token
+            });
+        }
+    );
+});
+
+router.get("/get-details", authMiddleware, (req, res) => {
+    const login_id = req.user?.login_id;
+
+    if (!login_id) {
+        return res.status(401).json({ message: "Unauthorized: Missing login_id" });
+    }
+
+    connection.query(
+        "SELECT id, company_id, login_id, email, role, name, designation, status, create_on, update_on FROM api_dashboard_user WHERE login_id = ?",
+        [login_id],
+        (err, results) => {
+            if (err) return res.status(500).json({ message: "Database error" });
+            if (results.length === 0) return res.status(404).json({ message: "User not found" });
+
+            return res.status(200).json({
+                message: "User details fetched successfully",
+                user: results[0]
             });
         }
     );
