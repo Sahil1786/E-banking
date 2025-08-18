@@ -203,7 +203,12 @@ router.get("/payouts-logs",authMiddleware, (req, res) => {
         const payoutQuery = "SELECT * FROM api_payout_log WHERE company_id = ?";
         connection.query(payoutQuery, [companyId], (err, payouts) => {
             if (err) return res.status(500).json({ error: "DB query failed" });
-            res.json(payouts);
+            // res.json(payouts);
+            return res.status(200).json({
+                message: "Payout logs fetched successfully",
+                count: payouts.length,
+                data: payouts
+            });
         });
     });
 });

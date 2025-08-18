@@ -24,7 +24,12 @@ router.get("/wallet-company", authMiddleware, (req, res) => {
         const walletQuery = "SELECT * FROM api_wallet_company WHERE company_id = ?";
         connection.query(walletQuery, [companyId], (err, walletResult) => {
             if (err) return res.status(500).json({ error: "DB query failed" });
-            res.json(walletResult);
+            // res.json(walletResult);
+            return res.status(200).json({
+                message: "Wallet company fetched successfully",
+                count: walletResult.length,
+                data: walletResult
+            })
         });
     });
 });

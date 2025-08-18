@@ -16,14 +16,22 @@ app.use(exprss.json());
 
 const port=3000 || process.env.Port
 
-app.use(cors(
-    {
-        origin: "http://localhost:5173", // Adjust this to your frontend URL
-        methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-        allowedHeaders: ['Content-Type', 'Authorization'] ,
-        credentials:true
+const allowedOrigins = [
+  "http://192.168.1.48:5173", // Computer A frontend
+  "http://192.168.1.35:5173", // Another device/frontend IP
+  "http://localhost:5173"     // Local testing
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin); // allow the request
+    } else {
+      callback(new Error("CORS not allowed for this origin"));
     }
-));
+  },
+  credentials: true,
+}));
 
 app.use("/v1", mainRouter);
 

@@ -120,6 +120,14 @@ module.exports = router;
 
 
 
+router.get("cheack-auth", authMiddleware, (req, res) => {
+    return res.status(200).json({
+        message: "User is authenticated",
+        user: req.userData
+    });
+});
+
+
 
 
 
