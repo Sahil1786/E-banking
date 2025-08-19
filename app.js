@@ -17,9 +17,9 @@ app.use(exprss.json());
 const port=3000 || process.env.Port
 
 const allowedOrigins = [
-  "http://192.168.1.48:5173", // Computer A frontend
-  "http://192.168.1.35:5173", // Another device/frontend IP
-  "http://localhost:5173"     // Local testing
+  "http://192.168.1.48:5173", 
+  "http://192.168.1.35:5173", 
+  "http://localhost:5173"    
 ];
 
 app.use(cors({

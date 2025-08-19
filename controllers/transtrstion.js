@@ -129,7 +129,7 @@ router.get("/wallet-ledger", authMiddleware, (req, res) => {
         if (err) return res.status(500).json({ message: "Database error", error: err });
 
         // Excel download
-        if (req.query.download && req.query.download.toLowerCase() === "excel") {
+        if (req.query.download && req.query.download.toLowerCase() === "") {
           const workbook = new ExcelJS.Workbook();
           const worksheet = workbook.addWorksheet("Transactions");
 
@@ -185,13 +185,9 @@ router.get("/wallet-ledger", authMiddleware, (req, res) => {
 
 
 
-
-
-
-router.get("/payouts-logs",authMiddleware, (req, res) => {
+router.get("/payouts", authMiddleware, (req, res) => {
     const loginId = req.user.login_id;
 
-   
     const companyQuery = "SELECT company_id FROM api_dashboard_user WHERE login_id = ?";
     connection.query(companyQuery, [loginId], (err, companyResult) => {
         if (err) return res.status(500).json({ error: "DB query failed" });
@@ -199,19 +195,165 @@ router.get("/payouts-logs",authMiddleware, (req, res) => {
 
         const companyId = companyResult[0].company_id;
 
-     
-        const payoutQuery = "SELECT * FROM api_payout_log WHERE company_id = ?";
-        connection.query(payoutQuery, [companyId], (err, payouts) => {
-            if (err) return res.status(500).json({ error: "DB query failed" });
-            // res.json(payouts);
+        // If "report=true" is passed → return summary
+        if (req.query.report && req.query.report.toLowerCase() === "true") {
+            const sql = `
+                SELECT 
+                    u.login_id,
+                    u.company_id,
+                    COUNT(p.id) AS total_payouts,
+
+                    SUM(CAST(p.settlement_amount AS DECIMAL(15,2))) AS total_payout_value,
+
+                    SUM(CASE WHEN p.status = 'SUCCESS' THEN 1 ELSE 0 END) AS success_count,
+                    SUM(CASE WHEN p.status = 'SUCCESS' THEN CAST(p.settlement_amount AS DECIMAL(15,2)) ELSE 0 END) AS success_value,
+
+                    SUM(CASE WHEN p.status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+                    SUM(CASE WHEN p.status = 'PENDING' THEN CAST(p.settlement_amount AS DECIMAL(15,2)) ELSE 0 END) AS pending_value,
+
+                    SUM(CASE WHEN p.status = 'FAILED' THEN 1 ELSE 0 END) AS failed_count,
+                    SUM(CASE WHEN p.status = 'FAILED' THEN CAST(p.settlement_amount AS DECIMAL(15,2)) ELSE 0 END) AS failed_value,
+
+                    ROUND(
+                        (SUM(CASE WHEN p.status = 'SUCCESS' THEN 1 ELSE 0 END) / COUNT(p.id)) * 100,
+                        2
+                    ) AS success_rate
+                FROM api_dashboard_user u
+                JOIN api_payout_log p ON u.company_id = p.company_id
+                WHERE u.login_id = ?
+                GROUP BY u.login_id, u.company_id
+            `;
+
+            connection.query(sql, [loginId], (err, results) => {
+                if (err) return res.status(500).json({ message: "Database error", error: err });
+
+                if (results.length === 0) {
+                    return res.status(404).json({ message: "No payout data found" });
+                }
+
+                return res.status(200).json({
+                    message: "Payout summary fetched successfully",
+                    summary: results[0]
+                });
+            });
+        } else {
+            // Otherwise return detailed payout logs
+            const payoutQuery = "SELECT * FROM api_payout_log WHERE company_id = ? ORDER BY txn_date DESC";
+            connection.query(payoutQuery, [companyId], (err, payouts) => {
+                if (err) return res.status(500).json({ error: "DB query failed" });
+
+                return res.status(200).json({
+                    message: "Payout logs fetched successfully",
+                    count: payouts.length,
+                    data: payouts
+                });
+            });
+        }
+    });
+});
+
+
+
+
+router.get("/payouts-logs", authMiddleware, (req, res) => {
+    const loginId = req.user.login_id;
+
+    const companyQuery = "SELECT company_id FROM api_dashboard_user WHERE login_id = ?";
+    connection.query(companyQuery, [loginId], (err, companyResult) => {
+        if (err) return res.status(500).json({ error: "DB query failed" });
+        if (companyResult.length === 0) return res.status(404).json({ message: "User not found" });
+
+        const companyId = companyResult[0].company_id;
+
+        // Build SQL dynamically
+        let sql = `SELECT * FROM api_payout_log WHERE company_id = ?`;
+        const params = [companyId];
+
+        // Status filter
+        if (req.query.status && req.query.status.toUpperCase() !== "ALL") {
+            sql += " AND status = ?";
+            params.push(req.query.status.toUpperCase());
+        }
+
+        // Date range filter
+        if (req.query.start_date && req.query.end_date) {
+            sql += " AND txn_date BETWEEN ? AND ?";
+            params.push(req.query.start_date + " 00:00:00", req.query.end_date + " 23:59:59");
+        }
+
+        // Search filter
+        if (req.query.search) {
+            sql += " AND (txn_id LIKE ? OR account_no LIKE ? OR bank_name LIKE ?)";
+            const searchKeyword = `%${req.query.search}%`;
+            params.push(searchKeyword, searchKeyword, searchKeyword);
+        }
+
+        sql += " ORDER BY txn_date DESC";
+
+        connection.query(sql, params, async (err, payouts) => {
+            if (err) return res.status(500).json({ message: "Database error", error: err });
+
+            // Excel download
+            if (req.query.download && req.query.download.toLowerCase() === "excel") {
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet("Payout Logs");
+
+                // Define header columns
+                worksheet.columns = [
+                    { header: "S.No", key: "s_no", width: 5 },
+                    { header: "Txn ID", key: "txn_id", width: 20 },
+                    { header: "Settlement Amount", key: "settlement_amount", width: 20 },
+                    { header: "Charge", key: "settlement_charge", width: 15 },
+                    { header: "Status", key: "status", width: 15 },
+                    { header: "Mode", key: "mode", width: 15 },
+                    { header: "Bank Name", key: "bank_name", width: 25 },
+                    { header: "Account No", key: "account_no", width: 20 },
+                    { header: "IFSC", key: "ifsc_code", width: 15 },
+                    { header: "Txn Date", key: "txn_date", width: 20 },
+                    { header: "Message", key: "message", width: 30 },
+                ];
+
+                // Add data rows
+                payouts.forEach((p, index) => {
+                    worksheet.addRow({
+                        s_no: index + 1,
+                        txn_id: p.txn_id,
+                        settlement_amount: p.settlement_amount,
+                        settlement_charge: p.settlement_charge,
+                        status: p.status,
+                        mode: p.mode,
+                        bank_name: p.bank_name,
+                        account_no: p.account_no,
+                        ifsc_code: p.ifsc_code,
+                        txn_date: p.txn_date,
+                        message: p.message || "-",
+                    });
+                });
+
+                res.setHeader(
+                    "Content-Disposition",
+                    `attachment; filename=payouts_${Date.now()}.xlsx`
+                );
+                res.setHeader(
+                    "Content-Type",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                );
+
+                await workbook.xlsx.write(res);
+                res.end();
+                return;
+            }
+
+            // Normal JSON response
             return res.status(200).json({
                 message: "Payout logs fetched successfully",
                 count: payouts.length,
-                data: payouts
+                data: payouts,
             });
         });
     });
 });
+
 
 
 router.get("/bulk-pay", authMiddleware, (req, res) => {
@@ -252,6 +394,10 @@ router.get("/bulk-pay", authMiddleware, (req, res) => {
         }
     );
 });
+
+
+
+
 
 
 module.exports = router;

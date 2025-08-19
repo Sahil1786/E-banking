@@ -22,5 +22,10 @@
     "mysql2": "^3.14.3",
     "pdfkit": "^0.17.1",
     "router": "^2.2.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.3",
+    "@babel/preset-env": "^7.28.3"
   }
 }

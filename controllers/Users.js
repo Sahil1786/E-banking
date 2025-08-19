@@ -82,7 +82,7 @@ router.post("/login", async (req, res) => {
             const token = jwt.sign(
                 { login_id: user.login_id },
                process.env.JWT_SECRET,                  
-                { expiresIn: "1h" }          
+                { expiresIn: "10h" }          
             );
 
             return res.status(200).json({
@@ -125,9 +125,27 @@ router.get("cheack-auth", authMiddleware, (req, res) => {
         message: "User is authenticated",
         user: req.userData
     });
+    
 });
 
 
+
+
+router.post("/logout", authMiddleware, (req, res) => {
+    try {
+        // Clear cookie (if token stored in cookies)
+        res.clearCookie("token");
+
+        // Remove authorization header (if stored in req)
+        delete req.headers.authorization;
+
+        return res.status(200).json({
+            message: "Logout successful. Please remove token from client storage."
+        });
+    } catch (error) {
+        return res.status(500).json({ message: "Logout failed", error });
+    }
+});
 
 
 
