@@ -25,7 +25,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin); // allow the request
+      callback(null, origin); 
     } else {
       callback(new Error("CORS not allowed for this origin"));
     }
@@ -35,7 +35,7 @@ app.use(cors({
 
 app.use("/v1", mainRouter);
 
- // Use the main router for all routes
+
 
 
 app.listen(port,(()=>{
