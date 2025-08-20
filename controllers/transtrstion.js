@@ -328,6 +328,63 @@ router.get("/bulk-pay", authMiddleware, async (req, res) => {
   }
 });
 
+
+router.get("/bulk-pay-statement-log",authMiddleware,async(req,res)=>{
+  try {
+       const login_id = req.user?.login_id;
+
+    if( !login_id) {
+      return res.status(401).json({ message: "Unauthorized: Missing login_id" });
+    }
+    const[userResults]=await connection.execute(
+      "select company_id from api_dashboard_user where login_id = ?",
+      [login_id]
+    )
+
+    if(userResults.length===0){
+      return res.status(404).json({meg:"User not found"});
+    }
+    const company_id = userResults[0].company_id;
+      const [logs] = await connection.execute(
+      `SELECT 
+          id,
+          company_id,
+          customer_mobile,
+          customer_aadhaar,
+          pre_balance,
+          txn_type,
+          txn_mode,
+          txn_amount,
+          commission_amount,
+          order_id,
+          post_balance,
+          date_time,
+          txn_status,
+          remark,
+          ipaddress,
+          freetext1,
+          freetext2
+       FROM api_statement_log_bkp
+       WHERE company_id = ?
+       ORDER BY date_time DESC`,
+      [company_id]
+    );
+
+    return res.status(200).json({
+      company_id,
+      count: logs.length,
+      data:logs
+    });
+
+    
+  } catch (error) {
+    console.error("bulk-pay-statement-log error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+    
+  }
+});
+
+
 // router.get("/wallet-ledger/:company_id", authMiddleware, async (req, res) => {
 //   try {
 //     const company_id = req.params.company_id;

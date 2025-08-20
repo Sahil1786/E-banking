@@ -8,6 +8,7 @@ const walletRouter = require('../controllers/wallet.js');
 const accountRouter = require('../controllers/account.js');
 
 const entityRouter = require('../controllers/entity.js');
+const ipRouter = require('../controllers/ip.js');
    
 
 
@@ -20,6 +21,7 @@ router.use('/user', transactionRouter);
 router.use('/user',walletRouter)
 router.use('/user', accountRouter);
 router.use('/user', entityRouter);
+router.use('/user', ipRouter);
 
 
 

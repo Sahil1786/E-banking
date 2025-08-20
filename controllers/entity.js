@@ -49,11 +49,7 @@ router.post("/entity-callback", authMiddleware, async (req, res) => {
     console.error("entity-callback POST error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
-});
-
-
-
-router.get("/entity-callback", authMiddleware, async (req, res) => {
+}).get("/entity-callback", authMiddleware, async (req, res) => {
   try {
     const login_id = req.user?.login_id;
     if (!login_id) {
@@ -90,5 +86,13 @@ router.get("/entity-callback", authMiddleware, async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
+
+
+
+
+
+
 
 module.exports = router;

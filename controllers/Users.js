@@ -154,7 +154,7 @@ router.get("/get-details", authMiddleware, async (req, res) => {
 //   }
 // });
 
-router.get("/cheack-auth", authMiddleware, async (req, res) => {
+router.get("/check-auth", authMiddleware, async (req, res) => {
   try {
     if (!req.userData) {
       return res.status(401).json({ message: "Unauthorized" });
