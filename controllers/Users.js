@@ -71,12 +71,7 @@ router.post("/login", async (req, res) => {
     );
 
     return res.status(200).json({
-      token,
-      user: {
-        login_id: user.login_id,
-        company_id: user.company_id,
-        status: user.status
-      }
+      token
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -107,14 +102,60 @@ router.get("/get-details", authMiddleware, async (req, res) => {
     }
 
     return res.status(200).json({
-      user: results[0]
+     user: results[0]
     });
   } catch (err) {
     console.error("get-details error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
-});
+})
 
+
+router.put("/update-details", authMiddleware, async (req, res) => {
+  try {
+    const login_id = req.user?.login_id;
+
+    if (!login_id) {
+      return res.status(401).json({ message: "Unauthorized: Missing login_id" });
+    }
+
+    const { email, role, name, designation, status } = req.body;
+
+ 
+    const updates = {};
+    if (email) updates.email = email;
+    if (role) updates.role = role;
+    if (name) updates.name = name;
+    if (designation) updates.designation = designation;
+    if (status) updates.status = status;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No fields provided to update" });
+    }
+
+
+    const setClause = Object.keys(updates)
+      .map(field => `${field} = ?`)
+      .join(", ");
+
+    const values = [...Object.values(updates), login_id];
+
+    const sql = `UPDATE api_dashboard_user SET ${setClause}, update_on = NOW() WHERE login_id = ?`;
+
+    const [result] = await connection.execute(sql, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found or no changes made" });
+    }
+
+    return res.status(200).json({
+      message: "User details updated successfully"
+    });
+  } catch (err) {
+    console.error("update-details error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 
 
