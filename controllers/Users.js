@@ -244,6 +244,50 @@ router.get("/check-auth", authMiddleware, async (req, res) => {
 
 
 
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { login_id, new_password } = req.body;
+
+    if (!login_id || !new_password) {
+      return res.status(400).json({
+        message: "Login ID and new password are required"
+      });
+    }
+
+
+    const [results] = await connection.execute(
+      "SELECT * FROM api_dashboard_user WHERE login_id = ?",
+      [login_id]
+    );
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+
+    const hashedPassword = md5(new_password);
+
+  
+    const [updateResult] = await connection.execute(
+      "UPDATE api_dashboard_user SET password = ?, update_on = NOW() WHERE login_id = ?",
+      [hashedPassword, login_id]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(500).json({ message: "Password reset failed" });
+    }
+
+    return res.status(200).json({
+      message: "Password reset successful"
+    });
+
+  } catch (err) {
+    console.error("Forgot Password error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 
 
 module.exports = router; 
