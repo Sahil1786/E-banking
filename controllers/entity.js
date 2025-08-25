@@ -87,9 +87,10 @@ router.post("/entity-callback", authMiddleware, async (req, res) => {
     console.error("entity-callback GET error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
-}).put("/entity-callback:corp_id/:callback_event_name/:status", authMiddleware, async (req, res) => {
+}).put("/entity-callback/:corp_id/:callback_event_name/:status", authMiddleware, async (req, res) => {
   try {
     let { corp_id, callback_event_name, status } = req.params;
+    const { new_callback_event_name, new_status, new_callback_url } = req.body;
 
     corp_id = corp_id?.trim();
     callback_event_name = callback_event_name?.trim();
@@ -99,23 +100,50 @@ router.post("/entity-callback", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "corp_id, callback_event_name, and status are required" });
     }
 
-    const sql = `
-      UPDATE entiity_callback_master
-      SET status = ?, update_on = NOW()
-      WHERE LOWER(corp_id) = LOWER(?) 
-        AND LOWER(callback_event_name) = LOWER(?)
-    `;
+    const [rows] = await connection.execute(
+      `SELECT id, corp_id, callback_event_name, callback_url, status, create_on
+       FROM entiity_callback_master
+       WHERE corp_id = ? AND LOWER(callback_event_name) = LOWER(?) AND LOWER(status) = LOWER(?)`,
+      [corp_id, callback_event_name, status]
+    );
 
-    const [result] = await connection.execute(sql, [status, corp_id, callback_event_name]);
-
-    if (result.affectedRows === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ message: "No matching rows found" });
     }
 
-    return res.status(200).json({
-      message: "Row(s) updated successfully",
-      updatedRows: result.affectedRows
-    });
+   
+    const [updateResult] = await connection.execute(
+      `UPDATE entiity_callback_master
+       SET callback_event_name = ?, status = ?, callback_url = ?, create_on = NOW()
+       WHERE corp_id = ? AND LOWER(callback_event_name) = LOWER(?) AND LOWER(status) = LOWER(?)`,
+      [
+        new_callback_event_name,
+        new_status,
+        new_callback_url,
+        corp_id,
+        callback_event_name,
+        status,
+      ]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(404).json({ message: "No rows updated" });
+    }
+
+    
+    const [updatedRows] = await connection.execute(
+      `SELECT id, corp_id, callback_event_name, callback_url, status, create_on
+       FROM entiity_callback_master
+       WHERE corp_id = ? AND LOWER(callback_event_name) = LOWER(?) AND LOWER(status) = LOWER(?)`,
+      [corp_id, new_callback_event_name, new_status]
+    );
+
+    if (updatedRows.length === 0) {
+      return res.status(200).json({ message: "Updated, but could not fetch updated row" });
+    }
+
+    return res.status(200).json(updatedRows[0]);
+
   } catch (err) {
     console.error("entity-callback UPDATE error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -131,28 +159,40 @@ router.post("/entity-callback", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Both corp_id and callback_event_name are required" });
     }
 
-    const sql = `
-      DELETE FROM entiity_callback_master
-      WHERE corp_id = ?
-        AND callback_event_name = LOWER(?)
-    `;
 
-    const [result] = await connection.execute(sql, [corp_id, callback_event_name]);
+    const [rows] = await connection.execute(
+      `SELECT id, corp_id, callback_event_name, callback_url, status, create_on
+       FROM entiity_callback_master
+       WHERE corp_id = ? AND LOWER(callback_event_name) = LOWER(?)`,
+      [corp_id, callback_event_name]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No matching rows found" });
+    }
+
+    const deletedRow = rows[0]; 
+
+    const [result] = await connection.execute(
+      `DELETE FROM entiity_callback_master
+       WHERE corp_id = ? AND LOWER(callback_event_name) = LOWER(?)`,
+      [corp_id, callback_event_name]
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "No matching rows found" });
     }
 
-    return res.status(200).json(
-      result.affectedRows
-     
-    );
+    
+    return res.status(200).json(deletedRow);
 
   } catch (err) {
     console.error("entity-callback DELETE error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
-});
+}); 
+
+
 
 
 
