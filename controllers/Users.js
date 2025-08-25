@@ -247,7 +247,7 @@ router.get("/check-auth", authMiddleware, async (req, res) => {
 router.put("/forgot-password", authMiddleware, async (req, res) => {
   try {
 
-    const login_id =req.use?.login_id
+    const login_id =req.user?.login_id
     const {  new_password } = req.body;
 
     if (!new_password) {
