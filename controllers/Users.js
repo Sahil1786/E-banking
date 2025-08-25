@@ -291,15 +291,17 @@ router.get("/check-auth", authMiddleware, async (req, res) => {
 
 router.put("/forgot-password", authMiddleware, async (req, res) => {
   try {
-    const { login_id, new_password } = req.body;
 
-    if (!login_id || !new_password) {
+    const login_id =req.use?.login_id
+    const {  new_password } = req.body;
+
+    if (!new_password) {
       return res.status(400).json({
-        message: "Login ID and new password are required"
+        message: "new password are required"
       });
     }
 
-    // Check if user exists
+  
     const [results] = await connection.execute(
       "SELECT id FROM api_dashboard_user WHERE login_id = ?",
       [login_id]
@@ -309,10 +311,10 @@ router.put("/forgot-password", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Hash the new password
+
     const hashedPassword = md5(new_password);
 
-    // Update password
+   
     const [updateResult] = await connection.execute(
       "UPDATE api_dashboard_user SET password = ?, update_on = DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') WHERE login_id = ?",
       [hashedPassword, login_id]
